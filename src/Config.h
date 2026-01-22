@@ -7,6 +7,7 @@ struct Config {
     double lambda;
     double mu;
     int bufferCapacity; // K, includes packet in service
+    int numQueues;
     int numFlows;
     double simEndTime;
     unsigned int seed;

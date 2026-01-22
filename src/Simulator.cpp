@@ -4,16 +4,26 @@ using namespace std;
 
 Simulator::Simulator(const Config& cfg)
     : cfg(cfg)
-    , server(cfg.mu)
+    , servers()
     , stats()
     , rng(cfg.seed)
     , eventQueue()
-    , buffer()
+    , buffers()
+    , numInSystemPerQueue()
+    , rrNextQueue(0)
     , nextPacketId(0)
     , currentTime(0.0)
 {
     stats.lastEventTime = 0.0;
     stats.numInSystem = 0;
+
+    if (this->cfg.numQueues <= 0) {
+        this->cfg.numQueues = 5;
+    }
+
+    servers.assign(this->cfg.numQueues, Server(this->cfg.mu));
+    buffers.assign(this->cfg.numQueues, deque<Packet>());
+    numInSystemPerQueue.assign(this->cfg.numQueues, 0);
 }
 
 void Simulator::scheduleArrival(double baseTime) {
@@ -23,7 +33,9 @@ void Simulator::scheduleArrival(double baseTime) {
     Packet packet(nextPacketId++, 0, 12000);
     packet.arrivalTime = arrivalTime;
     
-    Event arrivalEvent(arrivalTime, EventType::ARRIVAL, packet);
+    int q = rrNextQueue;
+    rrNextQueue = (rrNextQueue + 1) % cfg.numQueues;
+    Event arrivalEvent(arrivalTime, EventType::ARRIVAL, q, packet);
     eventQueue.push(arrivalEvent);
 }
 
@@ -59,16 +71,22 @@ void Simulator::run() {
 void Simulator::handleArrival(const Event& ev) {
     stats.recordArrival();
     
-    scheduleArrival(currentTime);
+    scheduleArrival(currentTime);//aa timej hu navu packet generte karavu chhu
     
-    if (stats.numInSystem < cfg.bufferCapacity) {
+    int q = ev.queueIndex;
+    if (q < 0 || q >= cfg.numQueues) {
+        return;
+    }
+
+    if (numInSystemPerQueue[q] < cfg.bufferCapacity) {
         stats.recordAccepted();
         
-        buffer.push_back(ev.packet);
+        buffers[q].push_back(ev.packet);
+        numInSystemPerQueue[q]++;
         stats.numInSystem++;
         
-        if (!server.busy) {
-            Event startServiceEvent(currentTime, EventType::START_SERVICE);
+        if (!servers[q].busy) {
+            Event startServiceEvent(currentTime, EventType::START_SERVICE, q);
             eventQueue.push(startServiceEvent);
         }
     } else {
@@ -76,7 +94,15 @@ void Simulator::handleArrival(const Event& ev) {
     }
 }
 
-void Simulator::handleStartService(const Event& ) {
+void Simulator::handleStartService(const Event& ev) {
+    int q = ev.queueIndex;
+    if (q < 0 || q >= cfg.numQueues) {
+        return;
+    }
+
+    Server& server = servers[q];
+    deque<Packet>& buffer = buffers[q];
+
     if (server.busy || buffer.empty()) {
         return;
     }
@@ -92,24 +118,30 @@ void Simulator::handleStartService(const Event& ) {
     double serviceTime = rng.expRand(cfg.mu);
     double endServiceTime = currentTime + serviceTime;
     
-    Event endServiceEvent(endServiceTime, EventType::END_SERVICE, server.current);
+    Event endServiceEvent(endServiceTime, EventType::END_SERVICE, q, server.current);
     eventQueue.push(endServiceEvent);
 }
 
 void Simulator::handleEndService(const Event& ev) {
+    int q = ev.queueIndex;
+    if (q < 0 || q >= cfg.numQueues) {
+        return;
+    }
+
     Packet packet = ev.packet;
     
     packet.endTime = currentTime;
     
     stats.recordPacketTimes(packet.arrivalTime, packet.startServiceTime, packet.endTime);
     
+    numInSystemPerQueue[q]--;
     stats.numInSystem--;
     
-    server.busy = false;
-    server.current = Packet();
+    servers[q].busy = false;
+    servers[q].current = Packet();
     
-    if (!buffer.empty()) {
-        Event startServiceEvent(currentTime, EventType::START_SERVICE);
+    if (!buffers[q].empty()) {
+        Event startServiceEvent(currentTime, EventType::START_SERVICE, q);
         eventQueue.push(startServiceEvent);
     }
 }

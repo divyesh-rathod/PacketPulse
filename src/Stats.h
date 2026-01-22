@@ -7,6 +7,7 @@ struct Stats {
     long totalArrivals;
     long totalAccepted;
     long totalDropped;
+    long totalServed;
     
     double sumDelay;
     double sumWaiting;
@@ -19,6 +20,7 @@ struct Stats {
         : totalArrivals(0)
         , totalAccepted(0)
         , totalDropped(0)
+        , totalServed(0)
         , sumDelay(0.0)
         , sumWaiting(0.0)
         , lastEventTime(0.0)
@@ -43,6 +45,7 @@ struct Stats {
         double waiting = startService - arrival;
         sumDelay += delay;
         sumWaiting += waiting;
+        totalServed++;
     }
     
     // Call before changing numInSystem.
@@ -53,11 +56,11 @@ struct Stats {
     }
     
     double getAverageDelay() const {
-        return (totalAccepted > 0) ? sumDelay / totalAccepted : 0.0;
+        return (totalServed > 0) ? sumDelay / totalServed : 0.0;
     }
     
     double getAverageWaiting() const {
-        return (totalAccepted > 0) ? sumWaiting / totalAccepted : 0.0;
+        return (totalServed > 0) ? sumWaiting / totalServed : 0.0;
     }
     
     double getAverageNumInSystem() const {

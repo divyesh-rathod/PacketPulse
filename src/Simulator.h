@@ -25,7 +25,7 @@ public:
 private:
     Config cfg;
     
-    Server server;
+    vector<Server> servers;
     
     Stats stats;
     
@@ -33,7 +33,9 @@ private:
     
     priority_queue<Event, vector<Event>, greater<Event>> eventQueue;
     
-    deque<Packet> buffer;
+    vector<deque<Packet>> buffers;
+    vector<int> numInSystemPerQueue;
+    int rrNextQueue;
     
     int nextPacketId;
     

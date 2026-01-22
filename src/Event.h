@@ -14,17 +14,20 @@ enum class EventType {
 struct Event {
     double time;
     EventType type;
+    int queueIndex;
     Packet packet;
     
     Event()
         : time(0.0)
         , type(EventType::ARRIVAL)
+        , queueIndex(0)
         , packet()
     {}
     
-    Event(double t, EventType et, Packet pkt = Packet())
+    Event(double t, EventType et, int queueIndex, Packet pkt = Packet())
         : time(t)
         , type(et)
+        , queueIndex(queueIndex)
         , packet(pkt)
     {}
     

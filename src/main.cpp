@@ -11,6 +11,7 @@ int main() {
     cfg.lambda = 80.0;
     cfg.mu = 100.0;
     cfg.bufferCapacity = 50;
+    cfg.numQueues = 5;
     cfg.numFlows = 1;
     cfg.simEndTime = 1000.0;
     cfg.seed = 12345;
@@ -24,7 +25,11 @@ int main() {
     cout << "  Arrival rate (lambda): " << cfg.lambda << " packets/unit time" << endl;
     cout << "  Service rate (mu):     " << cfg.mu << " packets/unit time" << endl;
     cout << "  Buffer capacity (K):   " << cfg.bufferCapacity << endl;
-    cout << "  Offered load (rho):    " << (cfg.lambda / cfg.mu) << endl;
+    cout << "  Queues/servers:        " << cfg.numQueues << endl;
+    double lambdaPerQueue = cfg.lambda / cfg.numQueues;
+    double rhoPerServer = lambdaPerQueue / cfg.mu;
+    cout << "  Per-queue lambda:      " << lambdaPerQueue << " packets/unit time" << endl;
+    cout << "  Utilization (rho):     " << rhoPerServer << " (per server)" << endl;
     cout << "  Simulation end time:   " << cfg.simEndTime << endl;
     cout << "  Random seed:           " << cfg.seed << endl;
     cout << endl;
@@ -49,6 +54,7 @@ int main() {
     cout << "  Total arrivals:     " << st.totalArrivals << endl;
     cout << "  Packets accepted:   " << st.totalAccepted << endl;
     cout << "  Packets dropped:    " << st.totalDropped << endl;
+    cout << "  Packets served:     " << st.totalServed << endl;
     cout << endl;
     
     cout << "Performance Metrics:" << endl;
@@ -60,13 +66,14 @@ int main() {
     cout << "  Average number in system:   " << avgNumInSystem << endl;
     cout << endl;
     
-    double rho = cfg.lambda / cfg.mu;
-    cout << "Theoretical M/M/1 (infinite buffer) for comparison:" << endl;
-    cout << "  Utilization (rho):          " << rho << endl;
+    double rho = rhoPerServer;
+    cout << "Theoretical (parallel M/M/1, infinite buffer) for comparison:" << endl;
+    cout << "  Per-queue utilization (rho):" << rho << endl;
     if (rho < 1.0) {
-        double theoreticalAvgN = rho / (1.0 - rho);
-        double theoreticalAvgDelay = 1.0 / (cfg.mu - cfg.lambda);
-        cout << "  Avg number in system:       " << theoreticalAvgN << endl;
+        double theoreticalAvgNPerQueue = rho / (1.0 - rho);
+        double theoreticalAvgNTotal = cfg.numQueues * theoreticalAvgNPerQueue;
+        double theoreticalAvgDelay = 1.0 / (cfg.mu - lambdaPerQueue);
+        cout << "  Avg number in system (tot): " << theoreticalAvgNTotal << endl;
         cout << "  Avg delay (W):              " << theoreticalAvgDelay << endl;
     } else {
         cout << "  System is unstable (rho >= 1)" << endl;
